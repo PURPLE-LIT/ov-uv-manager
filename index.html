@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OV/UV Invoice Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; padding: 2rem 1rem; font-size: 13px; }
+    .container { max-width: 960px; margin: 0 auto; }
+    h1 { font-size: 18px; font-weight: 600; margin-bottom: 1.25rem; }
+    .tabs { display: flex; border-bottom: 1px solid #e0e0de; margin-bottom: 1.25rem; }
+    .tab { padding: 9px 22px; cursor: pointer; font-size: 13px; font-weight: 500; color: #888; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; background: transparent; }
+    .tab.active { color: #1a1a1a; border-bottom-color: #1a1a1a; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .card { background: #fff; border: 1px solid #e5e5e3; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .field label { font-size: 11px; color: #888; display: block; margin-bottom: 3px; }
+    .field input, .field select { width: 100%; border: 1px solid #ddd; border-radius: 7px; padding: 6px 8px; background: #fafafa; color: #1a1a1a; font-size: 13px; }
+    .field input:focus, .field select:focus { outline: none; border-color: #4a90e2; }
+    .currency-select { display: flex; gap: 6px; }
+    .currency-btn { padding: 5px 14px; border: 1px solid #ccc; border-radius: 7px; background: transparent; font-size: 13px; font-weight: 600; cursor: pointer; color: #888; }
+    .currency-btn.active { background: #e8f0fe; color: #1a56db; border-color: #a4c0fb; }
+    .divider { border: none; border-top: 1px solid #e5e5e3; margin: 1rem 0; }
+    table.inv { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    table.inv th { text-align: center; font-weight: 600; color: #888; border-bottom: 1px solid #e5e5e3; padding: 5px 4px; font-size: 11px; }
+    table.inv td { padding: 6px 4px; text-align: center; border-bottom: 1px solid #e5e5e3; }
+    table.inv td:first-child { text-align: left; }
+    table.inv input[type=number], table.inv input[type=text] { width: 100%; border: 1px solid #ddd; border-radius: 6px; padding: 5px 6px; background: #fafafa; color: #1a1a1a; text-align: right; font-size: 12px; }
+    table.inv input[type=text] { text-align: left; }
+    table.inv input:focus { outline: none; border-color: #4a90e2; }
+    .total-row td { font-weight: 600; background: #f9f9f7; font-size: 12px; }
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+    .metric { background: #f5f5f3; border-radius: 8px; padding: 0.75rem 1rem; }
+    .metric-label { font-size: 11px; color: #888; margin-bottom: 3px; }
+    .metric-value { font-size: 17px; font-weight: 600; color: #1a1a1a; }
+    .metric-value.ov { color: #1a7a3a; }
+    .metric-value.uv { color: #c0392b; }
+    .formula-note { font-size: 10px; color: #bbb; margin-top: 2px; }
+    .btn-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+    .add-btn { flex: 1; padding: 9px; border: 1px solid #ccc; border-radius: 8px; background: transparent; color: #1a1a1a; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .add-btn:hover { background: #f5f5f3; }
+    .add-btn.local { border-color: #f0a500; color: #a06800; }
+    .add-btn.local:hover { background: #fff8e6; }
+    .section-title { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 8px; }
+    .hist-wrap { overflow-x: auto; }
+    table.hist { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; min-width: 560px; }
+    table.hist th { text-align: left; font-weight: 600; color: #888; border-bottom: 1px solid #e5e5e3; padding: 6px; font-size: 11px; white-space: nowrap; }
+    table.hist td { padding: 6px; border-bottom: 1px solid #e5e5e3; color: #1a1a1a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    table.hist input[type=text] { width: 100%; border: 1px solid #ddd; border-radius: 5px; padding: 3px 6px; font-size: 11px; background: #fafafa; color: #1a1a1a; }
+    table.hist input[type=text]:focus { outline: none; border-color: #4a90e2; }
+    .del-btn { background: transparent; border: none; cursor: pointer; color: #ccc; font-size: 13px; padding: 1px 4px; border-radius: 4px; }
+    .del-btn:hover { color: #c0392b; background: #fee2e2; }
+    .edit-btn { background: transparent; border: none; cursor: pointer; color: #4a90e2; font-size: 12px; padding: 1px 4px; border-radius: 4px; }
+    .edit-btn:hover { background: #e8f0fe; }
+    .empty-state { text-align: center; padding: 1.5rem; color: #bbb; font-size: 12px; }
+    .local-tables { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .local-col-title { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #e5e5e3; }
+    .col-meta { display: flex; gap: 8px; margin-bottom: 8px; }
+    .col-meta .field { flex: 1; }
+    .col-meta .field label { font-size: 10px; }
+    .col-meta .field input { font-size: 11px; padding: 4px 6px; }
+    table.local { width: 100%; border-collapse: collapse; font-size: 11px; }
+    table.local th { font-size: 10px; font-weight: 600; color: #888; border-bottom: 1px solid #e5e5e3; padding: 5px 4px; text-align: left; }
+    table.local td { padding: 5px 4px; border-bottom: 1px solid #e5e5e3; font-size: 11px; vertical-align: middle; }
+    table.local td.amt { text-align: right; }
+    .uv-text { color: #1a1a1a; font-weight: 500; }
+    .ov-text { color: #c0392b; font-weight: 500; }
+    .exp-text { color: #7a4f1a; font-weight: 500; }
+    .memo-cell { font-size: 10px; color: #888; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .total-local { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid #e5e5e3; font-size: 12px; }
+    .total-local .label { color: #888; font-weight: 600; }
+    .manual-entry { background: #f9f9f7; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; border: 1px solid #e5e5e3; }
+    .manual-entry .title { font-size: 11px; font-weight: 600; color: #888; margin-bottom: 8px; }
+    .manual-r { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .manual-r2 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 8px; align-items: end; }
+    .manual-r .field label, .manual-r2 .field label { font-size: 10px; }
+    .manual-add-btn { padding: 6px 12px; border: 1px solid #ccc; border-radius: 7px; background: #fff; color: #1a1a1a; font-size: 12px; cursor: pointer; height: 31px; white-space: nowrap; }
+    .manual-add-btn:hover { background: #f5f5f3; }
+    .save-notice { font-size: 11px; color: #1a7a3a; margin-left: 10px; display: none; }
+    .editing-banner { background: #fff8e6; border: 1px solid #f0a500; border-radius: 8px; padding: 8px 14px; margin-bottom: 10px; font-size: 12px; color: #a06800; display: none; }
+    .type-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+    .type-badge.UV { background: #f0f0f0; color: #444; }
+    .type-badge.OV { background: #fee2e2; color: #c0392b; }
+    .type-badge.EXP { background: #fef3e2; color: #7a4f1a; }
+    @media (max-width: 640px) {
+      .local-tables { grid-template-columns: 1fr; }
+      .manual-r { grid-template-columns: 1fr 1fr; }
+      .manual-r2 { grid-template-columns: 1fr 1fr; }
+      .row3 { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>OV / UV Invoice Manager <span class="save-notice" id="save-notice">✓ Saved</span></h1>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('invoice',0)">Invoice entry</button>
+      <button class="tab" onclick="switchTab('local',1)">Local management</button>
+    </div>
+
+    <!-- INVOICE TAB -->
+    <div id="tab-invoice" class="tab-content active">
+      <div class="editing-banner" id="editing-banner">Editing record — make changes and click "Update record" to save.</div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <span style="font-size:15px;font-weight:600;">Invoice entry</span>
+          <div class="currency-select">
+            <button class="currency-btn active" onclick="setCurrency('USD')" id="btn-usd">USD $</button>
+            <button class="currency-btn" onclick="setCurrency('EUR')" id="btn-eur">EUR €</button>
+          </div>
+        </div>
+        <div class="row3">
+          <div class="field"><label>Invoice No.</label><input type="text" id="inv-no" placeholder="e.g. KKI260527" /></div>
+          <div class="field"><label>Invoice Date</label><input type="date" id="inv-date" /></div>
+          <div class="field"><label>ATD</label><input type="date" id="atd" /></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Product name</label><input type="text" id="product" placeholder="e.g. Widget A" /></div>
+          <div class="field"><label>Received amount (B) <span id="sym-b-label" style="color:#bbb;">$</span></label><input type="number" id="received" placeholder="0.00" min="0" step="0.01" oninput="calc()" /></div>
+        </div>
+        <hr class="divider" />
+        <table class="inv">
+          <thead>
+            <tr>
+              <th style="text-align:left;width:14%;"></th>
+              <th style="width:16%;">QTY</th>
+              <th style="width:13%;">FOC</th>
+              <th style="width:16%;">Unit price</th>
+              <th style="width:16%;">Amount (A)</th>
+              <th style="width:25%;">Remark (FOC %)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="color:#888;font-size:11px;">Export</td>
+              <td><input type="number" id="qty" placeholder="0" min="0" oninput="calc()" /></td>
+              <td><input type="number" id="foc" placeholder="0" min="0" oninput="calc()" /></td>
+              <td><input type="number" id="unit" placeholder="0.00" min="0" step="0.01" oninput="calc()" /></td>
+              <td id="total-a" style="font-weight:600;font-size:12px;">—</td>
+              <td><input type="text" id="remark" placeholder="e.g. 2% FOC" /></td>
+            </tr>
+            <tr class="total-row">
+              <td colspan="4" style="text-align:right;font-size:11px;color:#888;">Invoice amount (A)</td>
+              <td id="invoice-a">—</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="metric-grid">
+        <div class="metric"><div class="metric-label">Invoice amount (A)</div><div class="metric-value" id="m-a">—</div></div>
+        <div class="metric"><div class="metric-label">OV amount</div><div class="metric-value ov" id="m-ov">—</div><div class="formula-note">(B − A) × 97%</div></div>
+        <div class="metric"><div class="metric-label">UV amount</div><div class="metric-value uv" id="m-uv">—</div><div class="formula-note">A − B</div></div>
+      </div>
+
+      <div class="btn-row" id="btn-row-normal">
+        <button class="add-btn" onclick="addHistory()">+ Add to history</button>
+        <button class="add-btn local" onclick="addToLocal()">+ Send to local management</button>
+      </div>
+      <div class="btn-row" id="btn-row-edit" style="display:none;">
+        <button class="add-btn" onclick="cancelEdit()" style="border-color:#ccc;color:#888;">Cancel</button>
+        <button class="add-btn" onclick="updateRecord()" style="border-color:#1a56db;color:#1a56db;">✓ Update record</button>
+        <button class="add-btn local" onclick="updateAndSendLocal()">✓ Update + Send to local</button>
+      </div>
+
+      <div class="section-title">History</div>
+      <div class="card" style="padding:0;overflow:hidden;">
+        <div class="hist-wrap">
+          <table class="hist">
+            <thead><tr>
+              <th style="width:13%;">Invoice No.</th>
+              <th style="width:16%;">Product</th>
+              <th style="width:11%;">ATD</th>
+              <th style="width:12%;">OV</th>
+              <th style="width:12%;">UV</th>
+              <th style="width:8%;">CCY</th>
+              <th style="width:18%;">Memo</th>
+              <th style="width:10%;"></th>
+            </tr></thead>
+            <tbody id="hist-body"><tr><td colspan="8" class="empty-state">No records yet.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOCAL TAB -->
+    <div id="tab-local" class="tab-content">
+      <div class="manual-entry">
+        <div class="title">Manual entry (remittance / cash / expenses)</div>
+        <div class="manual-r">
+          <div class="field"><label>Product / Description</label><input type="text" id="m-product" placeholder="e.g. Insurance, Freight, Office expense" /></div>
+          <div class="field"><label>IV No.</label><input type="text" id="m-invno" placeholder="302CH" /></div>
+          <div class="field"><label>ATD</label><input type="date" id="m-atd" /></div>
+          <div class="field"><label>Update date</label><input type="date" id="m-update" /></div>
+        </div>
+        <div class="manual-r2">
+          <div class="field"><label>Currency</label><select id="m-currency"><option value="USD">USD $</option><option value="EUR">EUR €</option></select></div>
+          <div class="field"><label>Amount (− = deduction)</label><input type="number" id="m-amount" placeholder="e.g. -976.72" step="0.01" /></div>
+          <div class="field"><label>Type</label>
+            <select id="m-type">
+              <option value="UV">UV</option>
+              <option value="OV">OV</option>
+              <option value="EXP">Expense (Insurance / Freight / Office)</option>
+            </select>
+          </div>
+          <div class="field"><label>Memo</label><input type="text" id="m-memo" placeholder="e.g. office expense" /></div>
+          <div><button class="manual-add-btn" onclick="addManual()">+ Add</button></div>
+        </div>
+      </div>
+
+      <div class="local-tables">
+        <div>
+          <div class="local-col-title">USD $ <span style="font-size:11px;color:#888;font-weight:400;">Ms. N Keeps</span></div>
+          <div class="col-meta">
+            <div class="field"><label>Update date</label><input type="date" id="usd-update-date" /></div>
+            <div class="field"><label>Memo</label><input type="text" id="usd-memo" placeholder="Note for this table..." /></div>
+          </div>
+          <table class="local">
+            <thead><tr>
+              <th style="width:26%;">Product</th>
+              <th style="width:15%;">IV No.</th>
+              <th style="width:14%;">ATD</th>
+              <th style="width:10%;">Type</th>
+              <th style="width:20%;" class="amt">Amount</th>
+              <th style="width:15%;">Memo</th>
+            </tr></thead>
+            <tbody id="local-usd-body"><tr><td colspan="6" class="empty-state">No entries.</td></tr></tbody>
+          </table>
+          <div class="total-local"><span class="label">Total</span><span id="usd-total" style="font-weight:600;font-size:13px;">$ 0.00</span></div>
+        </div>
+        <div>
+          <div class="local-col-title">EUR € <span style="font-size:11px;color:#888;font-weight:400;">Ms. N Keeps</span></div>
+          <div class="col-meta">
+            <div class="field"><label>Update date</label><input type="date" id="eur-update-date" /></div>
+            <div class="field"><label>Memo</label><input type="text" id="eur-memo" placeholder="Note for this table..." /></div>
+          </div>
+          <table class="local">
+            <thead><tr>
+              <th style="width:26%;">Product</th>
+              <th style="width:15%;">IV No.</th>
+              <th style="width:14%;">ATD</th>
+              <th style="width:10%;">Type</th>
+              <th style="width:20%;" class="amt">Amount</th>
+              <th style="width:15%;">Memo</th>
+            </tr></thead>
+            <tbody id="local-eur-body"><tr><td colspan="6" class="empty-state">No entries.</td></tr></tbody>
+          </table>
+          <div class="total-local"><span class="label">Total</span><span id="eur-total" style="font-weight:600;font-size:13px;">€ 0.00</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currency = 'USD';
+    let records = [];
+    let localRecords = [];
+    let currentA = 0, currentOV = 0, currentUV = 0;
+    let editingId = null;
+    const today = new Date().toISOString().slice(0,10);
+
+    function saveData() {
+      localStorage.setItem('ovuv_records', JSON.stringify(records));
+      localStorage.setItem('ovuv_local', JSON.stringify(localRecords));
+      const n = document.getElementById('save-notice');
+      n.style.display = 'inline';
+      setTimeout(() => { n.style.display = 'none'; }, 1500);
+    }
+
+    function loadData() {
+      const r = localStorage.getItem('ovuv_records');
+      const l = localStorage.getItem('ovuv_local');
+      if (r) records = JSON.parse(r);
+      if (l) localRecords = JSON.parse(l);
+    }
+
+    loadData();
+    document.getElementById('inv-date').value = today;
+    document.getElementById('atd').value = today;
+    document.getElementById('m-atd').value = today;
+    document.getElementById('m-update').value = today;
+    document.getElementById('usd-update-date').value = today;
+    document.getElementById('eur-update-date').value = today;
+    renderHistory();
+    renderLocal();
+
+    function switchTab(tab, idx) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-'+tab).classList.add('active');
+      document.querySelectorAll('.tab')[idx].classList.add('active');
+    }
+
+    function setCurrency(c) {
+      currency = c;
+      document.getElementById('btn-usd').classList.toggle('active', c==='USD');
+      document.getElementById('btn-eur').classList.toggle('active', c==='EUR');
+      document.getElementById('sym-b-label').textContent = c==='USD' ? '$' : '€';
+      calc();
+    }
+
+    function fmt(val, ccy) {
+      const s = (ccy||currency)==='USD' ? '$' : '€';
+      return s+' '+Math.abs(val).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+
+    function fmtSigned(val, ccy) {
+      const s = (ccy||currency)==='USD' ? '$' : '€';
+      return (val<0?'-':'')+s+' '+Math.abs(val).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+
+    function calc() {
+      const qty = parseFloat(document.getElementById('qty').value)||0;
+      const unit = parseFloat(document.getElementById('unit').value)||0;
+      const A = qty*unit;
+      currentA = A;
+      const hasA = qty>0||unit>0;
+      const aStr = hasA ? fmt(A) : '—';
+      ['total-a','invoice-a','m-a'].forEach(id => document.getElementById(id).textContent = aStr);
+      const bVal = document.getElementById('received').value;
+      const B = parseFloat(bVal);
+      if (!isNaN(B) && bVal!=='') {
+        const diff = B-A;
+        if (diff>0) {
+          currentOV=diff*0.97; currentUV=0;
+          document.getElementById('m-ov').textContent=fmt(currentOV);
+          document.getElementById('m-uv').textContent='—';
+        } else if (diff<0) {
+          currentUV=A-B; currentOV=0;
+          document.getElementById('m-uv').textContent=fmt(currentUV);
+          document.getElementById('m-ov').textContent='—';
+        } else {
+          currentOV=0; currentUV=0;
+          document.getElementById('m-ov').textContent='—';
+          document.getElementById('m-uv').textContent='—';
+        }
+      } else {
+        currentOV=0; currentUV=0;
+        document.getElementById('m-ov').textContent='—';
+        document.getElementById('m-uv').textContent='—';
+      }
+    }
+
+    function getFormValues() {
+      return {
+        invNo: document.getElementById('inv-no').value.trim(),
+        product: document.getElementById('product').value.trim(),
+        atd: document.getElementById('atd').value,
+        bVal: document.getElementById('received').value,
+        remark: document.getElementById('remark').value.trim()
+      };
+    }
+
+    function addHistory() {
+      const d = getFormValues();
+      if (!d.invNo||!d.product||!d.atd||!d.bVal) { alert('Please fill in all fields.'); return; }
+      records.unshift({ invNo:d.invNo, product:d.product, atd:d.atd, ov:currentOV, uv:currentUV, currency, remark:d.remark, memo:'', id:Date.now() });
+      renderHistory(); saveData(); clearForm();
+    }
+
+    function addToLocal() {
+      const d = getFormValues();
+      if (!d.invNo||!d.product||!d.atd||!d.bVal) { alert('Please fill in all fields.'); return; }
+      const type = currentOV>0?'OV':currentUV>0?'UV':null;
+      if (!type) { alert('No OV or UV amount calculated.'); return; }
+      const amount = type==='OV' ? -currentOV : currentUV;
+      localRecords.push({ product:d.product, invNo:d.invNo, atd:d.atd, updateDate:today, memo:'', currency, amount, type, id:Date.now() });
+      records.unshift({ invNo:d.invNo, product:d.product, atd:d.atd, ov:currentOV, uv:currentUV, currency, remark:d.remark, memo:'', id:Date.now() });
+      renderLocal(); renderHistory(); saveData(); clearForm();
+      switchTab('local',1);
+    }
+
+    function editRecord(id) {
+      const r = records.find(r=>r.id===id);
+      if (!r) return;
+      editingId = id;
+      document.getElementById('inv-no').value = r.invNo;
+      document.getElementById('product').value = r.product;
+      document.getElementById('atd').value = r.atd;
+      document.getElementById('remark').value = r.remark||'';
+      currency = r.currency;
+      document.getElementById('btn-usd').classList.toggle('active', currency==='USD');
+      document.getElementById('btn-eur').classList.toggle('active', currency==='EUR');
+      document.getElementById('sym-b-label').textContent = currency==='USD'?'$':'€';
+      document.getElementById('editing-banner').style.display = 'block';
+      document.getElementById('btn-row-normal').style.display = 'none';
+      document.getElementById('btn-row-edit').style.display = 'flex';
+      window.scrollTo(0,0);
+      switchTab('invoice',0);
+    }
+
+    function cancelEdit() {
+      editingId = null;
+      document.getElementById('editing-banner').style.display = 'none';
+      document.getElementById('btn-row-normal').style.display = 'flex';
+      document.getElementById('btn-row-edit').style.display = 'none';
+      clearForm();
+    }
+
+    function updateRecord() {
+      const d = getFormValues();
+      if (!d.invNo||!d.product||!d.atd) { alert('Please fill in all fields.'); return; }
+      const idx = records.findIndex(r=>r.id===editingId);
+      if (idx>-1) {
+        records[idx] = { ...records[idx], invNo:d.invNo, product:d.product, atd:d.atd, ov:currentOV, uv:currentUV, currency, remark:d.remark };
+      }
+      renderHistory(); saveData(); cancelEdit();
+    }
+
+    function updateAndSendLocal() {
+      const d = getFormValues();
+      if (!d.invNo||!d.product||!d.atd||!d.bVal) { alert('Please fill in all fields.'); return; }
+      const type = currentOV>0?'OV':currentUV>0?'UV':null;
+      if (!type) { alert('No OV or UV amount calculated.'); return; }
+      const amount = type==='OV' ? -currentOV : currentUV;
+      const idx = records.findIndex(r=>r.id===editingId);
+      if (idx>-1) {
+        records[idx] = { ...records[idx], invNo:d.invNo, product:d.product, atd:d.atd, ov:currentOV, uv:currentUV, currency, remark:d.remark };
+      }
+      localRecords.push({ product:d.product, invNo:d.invNo, atd:d.atd, updateDate:today, memo:'', currency, amount, type, id:Date.now() });
+      renderLocal(); renderHistory(); saveData(); cancelEdit();
+      switchTab('local',1);
+    }
+
+    function updateHistoryMemo(id, val) {
+      const r = records.find(r=>r.id===id);
+      if (r) { r.memo = val; saveData(); }
+    }
+
+    function addManual() {
+      const product = document.getElementById('m-product').value.trim();
+      const invNo = document.getElementById('m-invno').value.trim();
+      const atd = document.getElementById('m-atd').value;
+      const updateDate = document.getElementById('m-update').value;
+      const ccy = document.getElementById('m-currency').value;
+      const rawAmount = parseFloat(document.getElementById('m-amount').value);
+      const type = document.getElementById('m-type').value;
+      const memo = document.getElementById('m-memo').value.trim();
+      if (!product||!atd||isNaN(rawAmount)) { alert('Please fill in description, ATD, and amount.'); return; }
+      const amount = (type==='OV'||type==='EXP') ? -Math.abs(rawAmount) : Math.abs(rawAmount);
+      localRecords.push({ product, invNo, atd, updateDate, memo, currency:ccy, amount, type, id:Date.now() });
+      renderLocal(); saveData();
+      ['m-product','m-invno','m-amount','m-memo'].forEach(id=>document.getElementById(id).value='');
+    }
+
+    function deleteLocal(id) { localRecords=localRecords.filter(r=>r.id!==id); renderLocal(); saveData(); }
+
+    function renderHistory() {
+      const tbody = document.getElementById('hist-body');
+      if (!records.length) { tbody.innerHTML='<tr><td colspan="8" class="empty-state">No records yet.</td></tr>'; return; }
+      tbody.innerHTML = records.map(r=>`<tr>
+        <td title="${r.invNo}">${r.invNo}</td>
+        <td title="${r.product}">${r.product}</td>
+        <td>${r.atd}</td>
+        <td style="color:#1a7a3a;font-weight:600;">${r.ov>0?fmt(r.ov,r.currency):'—'}</td>
+        <td style="color:#c0392b;font-weight:600;">${r.uv>0?fmt(r.uv,r.currency):'—'}</td>
+        <td>${r.currency}</td>
+        <td><input type="text" value="${r.memo||''}" placeholder="memo..." onchange="updateHistoryMemo(${r.id},this.value)" /></td>
+        <td style="white-space:nowrap;">
+          <button class="edit-btn" onclick="editRecord(${r.id})" title="Edit">✏️</button>
+          <button class="del-btn" onclick="deleteHistory(${r.id})" title="Delete">✕</button>
+        </td>
+      </tr>`).join('');
+    }
+
+    function deleteHistory(id) { records=records.filter(r=>r.id!==id); renderHistory(); saveData(); }
+
+    function renderLocal() {
+      const usdRecs = localRecords.filter(r=>r.currency==='USD');
+      const eurRecs = localRecords.filter(r=>r.currency==='EUR');
+
+      function renderTable(recs, bodyId, totalId, sym, ccy) {
+        const tbody = document.getElementById(bodyId);
+        if (!recs.length) {
+          tbody.innerHTML=`<tr><td colspan="6" class="empty-state">No entries.</td></tr>`;
+          const el=document.getElementById(totalId); el.textContent=sym+' 0.00'; el.style.color='#1a1a1a'; return;
+        }
+        tbody.innerHTML = recs.map(r=>{
+          const cls = r.type==='OV'?'ov-text':r.type==='EXP'?'exp-text':'uv-text';
+          return `<tr>
+            <td class="${cls}" title="${r.product}">${r.product}</td>
+            <td style="color:#888;">${r.invNo||'—'}</td>
+            <td style="color:#888;">${r.atd}</td>
+            <td><span class="type-badge ${r.type}">${r.type}</span></td>
+            <td class="${cls} amt">${fmtSigned(r.amount,r.currency)} <button class="del-btn" onclick="deleteLocal(${r.id})">✕</button></td>
+            <td class="memo-cell" title="${r.memo||''}">${r.memo||'—'}</td>
+          </tr>`;
+        }).join('');
+        const total = recs.reduce((s,r)=>s+r.amount,0);
+        const el=document.getElementById(totalId);
+        el.textContent=fmtSigned(total,ccy);
+        el.style.color=total<0?'#c0392b':'#1a1a1a';
+      }
+
+      renderTable(usdRecs,'local-usd-body','usd-total','$','USD');
+      renderTable(eurRecs,'local-eur-body','eur-total','€','EUR');
+    }
+
+    function clearForm() {
+      ['inv-no','product','qty','foc','unit','received','remark'].forEach(id=>document.getElementById(id).value='');
+      document.getElementById('atd').value=today;
+      document.getElementById('inv-date').value=today;
+      currentA=0; currentOV=0; currentUV=0;
+      ['total-a','invoice-a','m-a','m-ov','m-uv'].forEach(id=>document.getElementById(id).textContent='—');
+    }
+  </script>
+</body>
+</html>
