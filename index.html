@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OV/UV Invoice Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; font-size: 13px; }
+
+    #page-home { display: flex; flex-direction: column; min-height: 100vh; padding: 3rem 1.5rem; max-width: 600px; margin: 0 auto; }
+    .home-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+    .home-sub { font-size: 13px; color: #999; margin-bottom: 2.5rem; }
+    .home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .home-card { border-radius: 16px; padding: 1.5rem 1.25rem; cursor: pointer; transition: transform 0.15s, opacity 0.15s; }
+    .home-card:hover { transform: scale(1.02); opacity: 0.9; }
+    .home-card:active { transform: scale(0.98); }
+    .home-card .card-label { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+    .home-card .card-desc { font-size: 12px; opacity: 0.75; line-height: 1.5; }
+    .card-ov { background: #E8F0FE; } .card-ov .card-label { color: #1a56db; }
+    .card-local { background: #FEE2E2; } .card-local .card-label { color: #c0392b; }
+    .card-acct { background: #D1FAE5; } .card-acct .card-label { color: #065f46; }
+    .sync-status { font-size: 11px; color: #999; margin-top: 1.5rem; }
+    .sync-status.ok { color: #1a7a3a; }
+    .sync-status.err { color: #c0392b; }
+
+    .page { display: none; min-height: 100vh; }
+    .page.active { display: block; }
+    .page-header { display: flex; align-items: center; gap: 12px; padding: 1.25rem 1.5rem; background: #fff; border-bottom: 1px solid #e5e5e3; position: sticky; top: 0; z-index: 10; }
+    .back-btn { background: transparent; border: 1px solid #ddd; border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; color: #888; }
+    .back-btn:hover { background: #f5f5f3; }
+    .page-header h2 { font-size: 16px; font-weight: 600; flex: 1; }
+    .sync-btn { padding: 5px 12px; border: 1px solid #4a90e2; border-radius: 7px; background: transparent; color: #4a90e2; font-size: 12px; cursor: pointer; }
+    .sync-btn:hover { background: #e8f0fe; }
+    .page-body { padding: 1.25rem 1.5rem; max-width: 960px; margin: 0 auto; }
+
+    .card { background: #fff; border: 1px solid #e5e5e3; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .field label { font-size: 11px; color: #888; display: block; margin-bottom: 3px; }
+    .field input, .field select { width: 100%; border: 1px solid #ddd; border-radius: 7px; padding: 6px 8px; background: #fafafa; color: #1a1a1a; font-size: 13px; }
+    .field input:focus, .field select:focus { outline: none; border-color: #4a90e2; }
+    .currency-select { display: flex; gap: 6px; }
+    .currency-btn { padding: 5px 14px; border: 1px solid #ccc; border-radius: 7px; background: transparent; font-size: 13px; font-weight: 600; cursor: pointer; color: #888; }
+    .currency-btn.active { background: #e8f0fe; color: #1a56db; border-color: #a4c0fb; }
+    .divider { border: none; border-top: 1px solid #e5e5e3; margin: 1rem 0; }
+    table.inv { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    table.inv th { text-align: center; font-weight: 600; color: #888; border-bottom: 1px solid #e5e5e3; padding: 5px 4px; font-size: 11px; }
+    table.inv td { padding: 6px 4px; text-align: center; border-bottom: 1px solid #e5e5e3; }
+    table.inv td:first-child { text-align: left; }
+    table.inv input[type=number], table.inv input[type=text] { width: 100%; border: 1px solid #ddd; border-radius: 6px; padding: 5px 6px; background: #fafafa; color: #1a1a1a; text-align: right; font-size: 12px; }
+    table.inv input[type=text] { text-align: left; }
+    table.inv input:focus { outline: none; border-color: #4a90e2; }
+    .total-row td { font-weight: 600; background: #f9f9f7; font-size: 12px; }
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
+    .metric { background: #f5f5f3; border-radius: 8px; padding: 0.75rem 1rem; }
+    .metric-label { font-size: 11px; color: #888; margin-bottom: 3px; }
+    .metric-value { font-size: 17px; font-weight: 600; color: #1a1a1a; }
+    .metric-value.ov { color: #1a7a3a; }
+    .metric-value.uv { color: #c0392b; }
+    .formula-note { font-size: 10px; color: #bbb; margin-top: 2px; }
+    .btn-row { display: flex; gap: 8px; margin-bottom: 1rem; }
+    .add-btn { flex: 1; padding: 9px; border: 1px solid #ccc; border-radius: 8px; background: transparent; color: #1a1a1a; font-size: 13px; font-weight: 500; cursor: pointer; }
+    .add-btn:hover { background: #f5f5f3; }
+    .add-btn.local { border-color: #f0a500; color: #a06800; }
+    .add-btn.local:hover { background: #fff8e6; }
+    .section-title { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 8px; }
+    .hist-wrap { overflow-x: auto; }
+    table.hist { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; min-width: 560px; }
+    table.hist th { text-align: left; font-weight: 600; color: #888; border-bottom: 1px solid #e5e5e3; padding: 6px; font-size: 11px; white-space: nowrap; }
+    table.hist td { padding: 6px; border-bottom: 1px solid #e5e5e3; color: #1a1a1a; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    table.hist input[type=text] { width: 100%; border: 1px solid #ddd; border-radius: 5px; padding: 3px 6px; font-size: 11px; background: #fafafa; color: #1a1a1a; }
+    table.hist input[type=text]:focus { outline: none; border-color: #4a90e2; }
+    .del-btn { background: transparent; border: none; cursor: pointer; color: #ccc; font-size: 13px; padding: 1px 4px; border-radius: 4px; }
+    .del-btn:hover { color: #c0392b; background: #fee2e2; }
+    .edit-btn { background: transparent; border: none; cursor: pointer; color: #4a90e2; font-size: 12px; padding: 1px 4px; border-radius: 4px; }
+    .edit-btn:hover { background: #e8f0fe; }
+    .empty-state { text-align: center; padding: 1.5rem; color: #bbb; font-size: 12px; }
+    .local-tables { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .local-col-title { font-size: 13px; font-weight: 600; color: #1a1a1a; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #e5e5e3; }
+    .col-meta { display: flex; gap: 8px; margin-bottom: 8px; }
+    .col-meta .field { flex: 1; }
+    .col-meta .field label { font-size: 10px; }
+    .col-meta .field input { font-size: 11px; padding: 4px 6px; }
+    table.local { width: 100%; border-collapse: collapse; font-size: 11px; }
+    table.local th { font-size: 10px; font-weight: 600; color: #888; border-bottom: 1px solid #e5e5e3; padding: 5px 4px; text-align: left; }
+    table.local td { padding: 5px 4px; border-bottom: 1px solid #e5e5e3; font-size: 11px; vertical-align: middle; }
+    table.local td.amt { text-align: right; }
+    .uv-text { color: #1a1a1a; font-weight: 500; }
+    .ov-text { color: #c0392b; font-weight: 500; }
+    .exp-text { color: #7a4f1a; font-weight: 500; }
+    .memo-cell { font-size: 10px; color: #888; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .total-local { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid #e5e5e3; font-size: 12px; }
+    .total-local .label { color: #888; font-weight: 600; }
+    .manual-entry { background: #f9f9f7; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; border: 1px solid #e5e5e3; }
+    .manual-entry .title { font-size: 11px; font-weight: 600; color: #888; margin-bottom: 8px; }
+    .manual-r { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .manual-r2 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 8px; align-items: end; }
+    .manual-r .field label, .manual-r2 .field label { font-size: 10px; }
+    .manual-add-btn { padding: 6px 12px; border: 1px solid #ccc; border-radius: 7px; background: #fff; color: #1a1a1a; font-size: 12px; cursor: pointer; height: 31px; white-space: nowrap; }
+    .manual-add-btn:hover { background: #f5f5f3; }
+    .editing-banner { background: #fff8e6; border: 1px solid #f0a500; border-radius: 8px; padding: 8px 14px; margin-bottom: 10px; font-size: 12px; color: #a06800; display: none; }
+    .type-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+    .type-badge.UV { background: #f0f0f0; color: #444; }
+    .type-badge.OV { background: #fee2e2; color: #c0392b; }
+    .type-badge.EXP { background: #fef3e2; color: #7a4f1a; }
+    .sort-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+    .sort-bar label { font-size: 11px; color: #888; }
+    .sort-bar select, .sort-bar input { border: 1px solid #ddd; border-radius: 6px; padding: 5px 8px; background: #fafafa; font-size: 12px; color: #1a1a1a; }
+    .sort-bar input { flex: 1; min-width: 120px; }
+    .sort-bar input:focus, .sort-bar select:focus { outline: none; border-color: #4a90e2; }
+    .account-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .account-card { background: #fff; border: 1px solid #e5e5e3; border-radius: 10px; padding: 1rem; }
+    .account-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #f0f0ee; }
+    .account-buyer { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+    .account-ccy { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 5px; background: #e8f0fe; color: #1a56db; }
+    .account-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 3px 0; font-size: 12px; }
+    .account-row .key { color: #888; min-width: 100px; flex-shrink: 0; }
+    .account-row .val { color: #1a1a1a; text-align: right; word-break: break-all; }
+    .account-actions { display: flex; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #f0f0ee; }
+    .acc-btn { flex: 1; padding: 5px; border: 1px solid #ddd; border-radius: 6px; background: transparent; font-size: 11px; cursor: pointer; color: #888; }
+    .acc-btn:hover { background: #f5f5f3; }
+    .acc-btn.danger:hover { background: #fee2e2; color: #c0392b; border-color: #f0a0a0; }
+    .add-account-form { background: #f9f9f7; border: 1px solid #e5e5e3; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+    .add-account-form .form-title { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 10px; }
+    .acc-group-title { font-size: 11px; font-weight: 600; color: #4a90e2; margin: 10px 0 6px; padding-bottom: 4px; border-bottom: 1px solid #e8f0fe; }
+    .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; z-index: 999; font-size: 14px; color: #888; display: none; }
+    @media (max-width: 640px) {
+      .home-grid { grid-template-columns: 1fr; }
+      .local-tables { grid-template-columns: 1fr; }
+      .manual-r { grid-template-columns: 1fr 1fr; }
+      .manual-r2 { grid-template-columns: 1fr 1fr; }
+      .row3 { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">⏳ Syncing with Google Sheets...</div>
+
+<!-- HOME -->
+<div id="page-home">
+  <div class="home-title">OV/UV Manager</div>
+  <div class="home-sub">Invoice & local fund management</div>
+  <div class="home-grid">
+    <div class="home-card card-ov" onclick="goTo('ov')">
+      <div class="card-label">OV Calculator</div>
+      <div class="card-desc">Calculate OV / UV amounts and manage invoice history</div>
+    </div>
+    <div class="home-card card-local" onclick="goTo('local')">
+      <div class="card-label">Local Management</div>
+      <div class="card-desc">Track USD & EUR funds held locally by Ms. N</div>
+    </div>
+    <div class="home-card card-acct" onclick="goTo('accounts')">
+      <div class="card-label">Account Info</div>
+      <div class="card-desc">Store and search buyer bank account details</div>
+    </div>
+  </div>
+  <div class="sync-status" id="home-sync-status"></div>
+</div>
+
+<!-- OV CALCULATOR -->
+<div class="page" id="page-ov">
+  <div class="page-header">
+    <button class="back-btn" onclick="goHome()">← Back</button>
+    <h2>OV Calculator</h2>
+    <button class="sync-btn" onclick="syncNow()">⟳ Sync</button>
+  </div>
+  <div class="page-body">
+    <div class="editing-banner" id="editing-banner">Editing record — update values and click "Update record".</div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-size:15px;font-weight:600;">Invoice entry</span>
+        <div class="currency-select">
+          <button class="currency-btn active" onclick="setCurrency('USD')" id="btn-usd">USD $</button>
+          <button class="currency-btn" onclick="setCurrency('EUR')" id="btn-eur">EUR €</button>
+        </div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>Invoice No.</label><input type="text" id="inv-no" placeholder="e.g. KKI260527" /></div>
+        <div class="field"><label>Invoice Date</label><input type="date" id="inv-date" /></div>
+        <div class="field"><label>ATD</label><input type="date" id="atd" /></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Product name</label><input type="text" id="product" placeholder="e.g. Widget A" /></div>
+        <div class="field"><label>Received amount (B) <span id="sym-b-label" style="color:#bbb;">$</span></label><input type="number" id="received" placeholder="0.00" min="0" step="0.01" oninput="calc()" /></div>
+      </div>
+      <hr class="divider" />
+      <table class="inv">
+        <thead>
+          <tr>
+            <th style="text-align:left;width:14%;"></th>
+            <th style="width:16%;">QTY</th>
+            <th style="width:13%;">FOC</th>
+            <th style="width:16%;">Unit price</th>
+            <th style="width:16%;">Amount (A)</th>
+            <th style="width:25%;">Remark (FOC %)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="color:#888;font-size:11px;">Export</td>
+            <td><input type="number" id="qty" placeholder="0" min="0" oninput="calc()" /></td>
+            <td><input type="number" id="foc" placeholder="0" min="0" oninput="calc()" /></td>
+            <td><input type="number" id="unit" placeholder="0.00" min="0" step="0.01" oninput="calc()" /></td>
+            <td id="total-a" style="font-weight:600;font-size:12px;">—</td>
+            <td><input type="text" id="remark" placeholder="e.g. 2% FOC" /></td>
+          </tr>
+          <tr class="total-row">
+            <td colspan="4" style="text-align:right;font-size:11px;color:#888;">Invoice amount (A)</td>
+            <td id="invoice-a">—</td><td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="metric-grid">
+      <div class="metric"><div class="metric-label">Invoice amount (A)</div><div class="metric-value" id="m-a">—</div></div>
+      <div class="metric"><div class="metric-label">OV amount</div><div class="metric-value ov" id="m-ov">—</div><div class="formula-note">(B − A) × 97%</div></div>
+      <div class="metric"><div class="metric-label">UV amount</div><div class="metric-value uv" id="m-uv">—</div><div class="formula-note">A − B</div></div>
+    </div>
+    <div class="btn-row" id="btn-row-normal">
+      <button class="add-btn" onclick="addHistory()">+ Add to history</button>
+      <button class="add-btn local" onclick="addToLocal()">+ Send to local management</button>
+    </div>
+    <div class="btn-row" id="btn-row-edit" style="display:none;">
+      <button class="add-btn" onclick="cancelEdit()" style="border-color:#ccc;color:#888;">Cancel</button>
+      <button class="add-btn" onclick="updateRecord()" style="border-color:#1a56db;color:#1a56db;">✓ Update record</button>
+      <button class="add-btn local" onclick="updateAndSendLocal()">✓ Update + Send to local</button>
+    </div>
+    <div class="section-title">History</div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="hist-wrap">
+        <table class="hist">
+          <thead><tr>
+            <th style="width:13%;">Invoice No.</th>
+            <th style="width:16%;">Product</th>
+            <th style="width:11%;">ATD</th>
+            <th style="width:12%;">OV</th>
+            <th style="width:12%;">UV</th>
+            <th style="width:8%;">CCY</th>
+            <th style="width:18%;">Memo</th>
+            <th style="width:10%;"></th>
+          </tr></thead>
+          <tbody id="hist-body"><tr><td colspan="8" class="empty-state">No records yet.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOCAL MANAGEMENT -->
+<div class="page" id="page-local">
+  <div class="page-header">
+    <button class="back-btn" onclick="goHome()">← Back</button>
+    <h2>Local Management</h2>
+    <button class="sync-btn" onclick="syncNow()">⟳ Sync</button>
+  </div>
+  <div class="page-body">
+    <div class="manual-entry">
+      <div class="title">Manual entry (remittance / cash / expenses)</div>
+      <div class="manual-r">
+        <div class="field"><label>Product / Description</label><input type="text" id="m-product" placeholder="e.g. Insurance, Freight, Office expense" /></div>
+        <div class="field"><label>IV No.</label><input type="text" id="m-invno" placeholder="302CH" /></div>
+        <div class="field"><label>ATD</label><input type="date" id="m-atd" /></div>
+        <div class="field"><label>Update date</label><input type="date" id="m-update" /></div>
+      </div>
+      <div class="manual-r2">
+        <div class="field"><label>Currency</label><select id="m-currency"><option value="USD">USD $</option><option value="EUR">EUR €</option></select></div>
+        <div class="field"><label>Amount (− = deduction)</label><input type="number" id="m-amount" placeholder="e.g. -976.72" step="0.01" /></div>
+        <div class="field"><label>Type</label>
+          <select id="m-type">
+            <option value="UV">UV</option>
+            <option value="OV">OV</option>
+            <option value="EXP">Expense (Insurance / Freight / Office)</option>
+          </select>
+        </div>
+        <div class="field"><label>Memo</label><input type="text" id="m-memo" placeholder="e.g. office expense" /></div>
+        <div><button class="manual-add-btn" onclick="addManual()">+ Add</button></div>
+      </div>
+    </div>
+    <div class="local-tables">
+      <div>
+        <div class="local-col-title">USD $ <span style="font-size:11px;color:#888;font-weight:400;">Ms. N Keeps</span></div>
+        <div class="col-meta">
+          <div class="field"><label>Update date</label><input type="date" id="usd-update-date" /></div>
+          <div class="field"><label>Memo</label><input type="text" id="usd-memo" placeholder="Note for this table..." /></div>
+        </div>
+        <table class="local">
+          <thead><tr><th style="width:26%;">Product</th><th style="width:15%;">IV No.</th><th style="width:14%;">ATD</th><th style="width:10%;">Type</th><th style="width:20%;" class="amt">Amount</th><th style="width:15%;">Memo</th></tr></thead>
+          <tbody id="local-usd-body"><tr><td colspan="6" class="empty-state">No entries.</td></tr></tbody>
+        </table>
+        <div class="total-local"><span class="label">Total</span><span id="usd-total" style="font-weight:600;font-size:13px;">$ 0.00</span></div>
+      </div>
+      <div>
+        <div class="local-col-title">EUR € <span style="font-size:11px;color:#888;font-weight:400;">Ms. N Keeps</span></div>
+        <div class="col-meta">
+          <div class="field"><label>Update date</label><input type="date" id="eur-update-date" /></div>
+          <div class="field"><label>Memo</label><input type="text" id="eur-memo" placeholder="Note for this table..." /></div>
+        </div>
+        <table class="local">
+          <thead><tr><th style="width:26%;">Product</th><th style="width:15%;">IV No.</th><th style="width:14%;">ATD</th><th style="width:10%;">Type</th><th style="width:20%;" class="amt">Amount</th><th style="width:15%;">Memo</th></tr></thead>
+          <tbody id="local-eur-body"><tr><td colspan="6" class="empty-state">No entries.</td></tr></tbody>
+        </table>
+        <div class="total-local"><span class="label">Total</span><span id="eur-total" style="font-weight:600;font-size:13px;">€ 0.00</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ACCOUNT INFO -->
+<div class="page" id="page-accounts">
+  <div class="page-header">
+    <button class="back-btn" onclick="goHome()">← Back</button>
+    <h2>Account Info</h2>
+    <button class="sync-btn" onclick="syncNow()">⟳ Sync</button>
+  </div>
+  <div class="page-body">
+    <div class="add-account-form">
+      <div class="form-title">+ Add new account</div>
+      <div class="acc-group-title">Buyer info</div>
+      <div class="row2">
+        <div class="field"><label>Buyer name</label><input type="text" id="acc-buyer" placeholder="e.g. ABC Trading Co." /></div>
+        <div class="field"><label>Currency</label>
+          <select id="acc-ccy"><option value="USD">USD $</option><option value="EUR">EUR €</option><option value="BOTH">USD + EUR</option></select>
+        </div>
+      </div>
+      <div class="acc-group-title">Beneficiary / Account details</div>
+      <div class="row3">
+        <div class="field"><label>Beneficiary name</label><input type="text" id="acc-name" placeholder="e.g. John Doe" /></div>
+        <div class="field"><label>Title</label><input type="text" id="acc-title" placeholder="e.g. Mr. / Ms. / Director" /></div>
+        <div class="field"><label>Address</label><input type="text" id="acc-addr" placeholder="e.g. 123 Main St, City" /></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>Account No.</label><input type="text" id="acc-acno" placeholder="e.g. 1234567890" /></div>
+        <div class="field"><label>Bank name</label><input type="text" id="acc-bank" placeholder="e.g. Citibank N.A." /></div>
+        <div class="field"><label>Swift code</label><input type="text" id="acc-swift" placeholder="e.g. CITIUS33" /></div>
+      </div>
+      <div class="field" style="margin-bottom:10px;"><label>Memo</label><input type="text" id="acc-memo" placeholder="Additional notes..." /></div>
+      <button class="add-btn" style="max-width:160px;" onclick="addAccount()">+ Save</button>
+    </div>
+    <div class="sort-bar">
+      <label>Sort by:</label>
+      <select id="sort-field" onchange="renderAccounts()"><option value="buyer">Buyer name</option><option value="ccy">Currency</option></select>
+      <input type="text" id="acc-search" placeholder="Search buyer or currency..." oninput="renderAccounts()" />
+    </div>
+    <div class="account-grid" id="account-grid">
+      <div class="empty-state" style="grid-column:1/-1;padding:2rem;">No accounts saved yet.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = 'https://script.google.com/macros/s/AKfycbwIpGzvJTloFKKx0YOSx6AYvo0nq4aQAOFEOHWheYjNva6wKBbCUPggABWXeB6d6sLr/exec';
+
+  let currency = 'USD';
+  let records = [], localRecords = [], accounts = [];
+  let currentA = 0, currentOV = 0, currentUV = 0;
+  let editingId = null;
+  const today = new Date().toISOString().slice(0,10);
+
+  function showLoading(v) { document.getElementById('loading').style.display = v ? 'flex' : 'none'; }
+  function setStatus(msg, type) {
+    const el = document.getElementById('home-sync-status');
+    el.textContent = msg;
+    el.className = 'sync-status' + (type ? ' ' + type : '');
+  }
+
+  async function loadFromSheets() {
+    showLoading(true);
+    try {
+      const res = await fetch(API + '?action=getAll');
+      const data = await res.json();
+      // parse records
+      records = (data.records||[]).filter(r=>r[0]).map(r=>({
+        id:r[0], invNo:r[1], product:r[2], atd:r[3], ov:parseFloat(r[4])||0, uv:parseFloat(r[5])||0,
+        currency:r[6], remark:r[7], memo:r[8], qty:r[9], foc:r[10], unit:r[11], received:r[12]
+      }));
+      localRecords = (data.local||[]).filter(r=>r[0]).map(r=>({
+        id:r[0], product:r[1], invNo:r[2], atd:r[3], updateDate:r[4],
+        currency:r[5], amount:parseFloat(r[6])||0, type:r[7], memo:r[8]
+      }));
+      accounts = (data.accounts||[]).filter(r=>r[0]).map(r=>({
+        id:r[0], buyer:r[1], ccy:r[2], name:r[3], title:r[4],
+        addr:r[5], acno:r[6], bank:r[7], swift:r[8], memo:r[9]
+      }));
+      renderHistory(); renderLocal(); renderAccounts();
+      setStatus('✓ Last synced: ' + new Date().toLocaleTimeString(), 'ok');
+    } catch(e) {
+      setStatus('⚠ Sync failed. Check connection.', 'err');
+    }
+    showLoading(false);
+  }
+
+  async function saveToSheets() {
+    showLoading(true);
+    try {
+      await fetch(API, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'save', records, local: localRecords, accounts })
+      });
+      setStatus('✓ Saved: ' + new Date().toLocaleTimeString(), 'ok');
+    } catch(e) {
+      setStatus('⚠ Save failed. Check connection.', 'err');
+    }
+    showLoading(false);
+  }
+
+  function syncNow() { loadFromSheets(); }
+
+  // Init
+  document.getElementById('inv-date').value = today;
+  document.getElementById('atd').value = today;
+  document.getElementById('m-atd').value = today;
+  document.getElementById('m-update').value = today;
+  document.getElementById('usd-update-date').value = today;
+  document.getElementById('eur-update-date').value = today;
+  loadFromSheets();
+
+  function goTo(section) {
+    document.getElementById('page-home').style.display = 'none';
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-'+section).classList.add('active');
+    window.scrollTo(0,0);
+  }
+  function goHome() {
+    document.getElementById('page-home').style.display = 'flex';
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    window.scrollTo(0,0);
+  }
+
+  function setCurrency(c) {
+    currency = c;
+    document.getElementById('btn-usd').classList.toggle('active', c==='USD');
+    document.getElementById('btn-eur').classList.toggle('active', c==='EUR');
+    document.getElementById('sym-b-label').textContent = c==='USD'?'$':'€';
+    calc();
+  }
+  function fmt(val, ccy) {
+    const s=(ccy||currency)==='USD'?'$':'€';
+    return s+' '+Math.abs(val).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+  function fmtSigned(val, ccy) {
+    const s=(ccy||currency)==='USD'?'$':'€';
+    return (val<0?'-':'')+s+' '+Math.abs(val).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+  function calc() {
+    const qty=parseFloat(document.getElementById('qty').value)||0;
+    const unit=parseFloat(document.getElementById('unit').value)||0;
+    const A=qty*unit; currentA=A;
+    const hasA=qty>0||unit>0;
+    const aStr=hasA?fmt(A):'—';
+    ['total-a','invoice-a','m-a'].forEach(id=>document.getElementById(id).textContent=aStr);
+    const bVal=document.getElementById('received').value;
+    const B=parseFloat(bVal);
+    if(!isNaN(B)&&bVal!==''){
+      const diff=B-A;
+      if(diff>0){currentOV=diff*0.97;currentUV=0;document.getElementById('m-ov').textContent=fmt(currentOV);document.getElementById('m-uv').textContent='—';}
+      else if(diff<0){currentUV=A-B;currentOV=0;document.getElementById('m-uv').textContent=fmt(currentUV);document.getElementById('m-ov').textContent='—';}
+      else{currentOV=0;currentUV=0;document.getElementById('m-ov').textContent='—';document.getElementById('m-uv').textContent='—';}
+    } else {
+      currentOV=0;currentUV=0;document.getElementById('m-ov').textContent='—';document.getElementById('m-uv').textContent='—';
+    }
+  }
+  function getFormValues() {
+    return {
+      invNo:document.getElementById('inv-no').value.trim(),
+      product:document.getElementById('product').value.trim(),
+      atd:document.getElementById('atd').value,
+      bVal:document.getElementById('received').value,
+      remark:document.getElementById('remark').value.trim(),
+      qty:document.getElementById('qty').value,
+      foc:document.getElementById('foc').value,
+      unit:document.getElementById('unit').value
+    };
+  }
+  function loadFormValues(r) {
+    document.getElementById('inv-no').value=r.invNo||'';
+    document.getElementById('product').value=r.product||'';
+    document.getElementById('atd').value=r.atd||today;
+    document.getElementById('remark').value=r.remark||'';
+    document.getElementById('qty').value=r.qty||'';
+    document.getElementById('foc').value=r.foc||'';
+    document.getElementById('unit').value=r.unit||'';
+    document.getElementById('received').value=r.received||'';
+    currency=r.currency||'USD';
+    document.getElementById('btn-usd').classList.toggle('active',currency==='USD');
+    document.getElementById('btn-eur').classList.toggle('active',currency==='EUR');
+    document.getElementById('sym-b-label').textContent=currency==='USD'?'$':'€';
+    calc();
+  }
+  function addHistory() {
+    const d=getFormValues();
+    if(!d.invNo||!d.product||!d.atd||!d.bVal){alert('Please fill in all fields.');return;}
+    records.unshift({id:Date.now(),invNo:d.invNo,product:d.product,atd:d.atd,ov:currentOV,uv:currentUV,currency,remark:d.remark,memo:'',qty:d.qty,foc:d.foc,unit:d.unit,received:d.bVal});
+    renderHistory();saveToSheets();clearForm();
+  }
+  function addToLocal() {
+    const d=getFormValues();
+    if(!d.invNo||!d.product||!d.atd||!d.bVal){alert('Please fill in all fields.');return;}
+    const type=currentOV>0?'OV':currentUV>0?'UV':null;
+    if(!type){alert('No OV or UV amount calculated.');return;}
+    const amount=type==='OV'?-currentOV:currentUV;
+    localRecords.push({id:Date.now(),product:d.product,invNo:d.invNo,atd:d.atd,updateDate:today,memo:'',currency,amount,type});
+    records.unshift({id:Date.now()+1,invNo:d.invNo,product:d.product,atd:d.atd,ov:currentOV,uv:currentUV,currency,remark:d.remark,memo:'',qty:d.qty,foc:d.foc,unit:d.unit,received:d.bVal});
+    renderLocal();renderHistory();saveToSheets();clearForm();goTo('local');
+  }
+  function editRecord(id) {
+    const r=records.find(r=>r.id===id);if(!r)return;
+    editingId=id;loadFormValues(r);
+    document.getElementById('editing-banner').style.display='block';
+    document.getElementById('btn-row-normal').style.display='none';
+    document.getElementById('btn-row-edit').style.display='flex';
+    goTo('ov');window.scrollTo(0,0);
+  }
+  function cancelEdit() {
+    editingId=null;
+    document.getElementById('editing-banner').style.display='none';
+    document.getElementById('btn-row-normal').style.display='flex';
+    document.getElementById('btn-row-edit').style.display='none';
+    clearForm();
+  }
+  function updateRecord() {
+    const d=getFormValues();
+    if(!d.invNo||!d.product||!d.atd){alert('Please fill in all fields.');return;}
+    const idx=records.findIndex(r=>r.id===editingId);
+    if(idx>-1)records[idx]={...records[idx],invNo:d.invNo,product:d.product,atd:d.atd,ov:currentOV,uv:currentUV,currency,remark:d.remark,qty:d.qty,foc:d.foc,unit:d.unit,received:d.bVal};
+    renderHistory();saveToSheets();cancelEdit();
+  }
+  function updateAndSendLocal() {
+    const d=getFormValues();
+    if(!d.invNo||!d.product||!d.atd||!d.bVal){alert('Please fill in all fields.');return;}
+    const type=currentOV>0?'OV':currentUV>0?'UV':null;
+    if(!type){alert('No OV or UV amount calculated.');return;}
+    const amount=type==='OV'?-currentOV:currentUV;
+    const idx=records.findIndex(r=>r.id===editingId);
+    if(idx>-1)records[idx]={...records[idx],invNo:d.invNo,product:d.product,atd:d.atd,ov:currentOV,uv:currentUV,currency,remark:d.remark,qty:d.qty,foc:d.foc,unit:d.unit,received:d.bVal};
+    localRecords.push({id:Date.now(),product:d.product,invNo:d.invNo,atd:d.atd,updateDate:today,memo:'',currency,amount,type});
+    renderLocal();renderHistory();saveToSheets();cancelEdit();goTo('local');
+  }
+  function updateHistoryMemo(id,val){const r=records.find(r=>r.id===id);if(r){r.memo=val;saveToSheets();}}
+  function addManual() {
+    const product=document.getElementById('m-product').value.trim();
+    const invNo=document.getElementById('m-invno').value.trim();
+    const atd=document.getElementById('m-atd').value;
+    const updateDate=document.getElementById('m-update').value;
+    const ccy=document.getElementById('m-currency').value;
+    const rawAmount=parseFloat(document.getElementById('m-amount').value);
+    const type=document.getElementById('m-type').value;
+    const memo=document.getElementById('m-memo').value.trim();
+    if(!product||!atd||isNaN(rawAmount)){alert('Please fill in description, ATD, and amount.');return;}
+    const amount=(type==='OV'||type==='EXP')?-Math.abs(rawAmount):Math.abs(rawAmount);
+    localRecords.push({id:Date.now(),product,invNo,atd,updateDate,memo,currency:ccy,amount,type});
+    renderLocal();saveToSheets();
+    ['m-product','m-invno','m-amount','m-memo'].forEach(id=>document.getElementById(id).value='');
+  }
+  function deleteLocal(id){localRecords=localRecords.filter(r=>r.id!==id);renderLocal();saveToSheets();}
+  function renderHistory() {
+    const tbody=document.getElementById('hist-body');
+    if(!records.length){tbody.innerHTML='<tr><td colspan="8" class="empty-state">No records yet.</td></tr>';return;}
+    tbody.innerHTML=records.map(r=>`<tr>
+      <td title="${r.invNo}">${r.invNo}</td>
+      <td title="${r.product}">${r.product}</td>
+      <td>${r.atd}</td>
+      <td style="color:#1a7a3a;font-weight:600;">${r.ov>0?fmt(r.ov,r.currency):'—'}</td>
+      <td style="color:#c0392b;font-weight:600;">${r.uv>0?fmt(r.uv,r.currency):'—'}</td>
+      <td>${r.currency}</td>
+      <td><input type="text" value="${r.memo||''}" placeholder="memo..." onchange="updateHistoryMemo(${r.id},this.value)" /></td>
+      <td style="white-space:nowrap;">
+        <button class="edit-btn" onclick="editRecord(${r.id})">✏️</button>
+        <button class="del-btn" onclick="deleteHistory(${r.id})">✕</button>
+      </td>
+    </tr>`).join('');
+  }
+  function deleteHistory(id){records=records.filter(r=>r.id!==id);renderHistory();saveToSheets();}
+  function renderLocal() {
+    const usdRecs=localRecords.filter(r=>r.currency==='USD');
+    const eurRecs=localRecords.filter(r=>r.currency==='EUR');
+    function renderTable(recs,bodyId,totalId,sym,ccy) {
+      const tbody=document.getElementById(bodyId);
+      if(!recs.length){tbody.innerHTML=`<tr><td colspan="6" class="empty-state">No entries.</td></tr>`;const el=document.getElementById(totalId);el.textContent=sym+' 0.00';el.style.color='#1a1a1a';return;}
+      tbody.innerHTML=recs.map(r=>{
+        const cls=r.type==='OV'?'ov-text':r.type==='EXP'?'exp-text':'uv-text';
+        return `<tr>
+          <td class="${cls}" title="${r.product}">${r.product}</td>
+          <td style="color:#888;">${r.invNo||'—'}</td>
+          <td style="color:#888;">${r.atd}</td>
+          <td><span class="type-badge ${r.type}">${r.type}</span></td>
+          <td class="${cls} amt">${fmtSigned(r.amount,r.currency)} <button class="del-btn" onclick="deleteLocal(${r.id})">✕</button></td>
+          <td class="memo-cell" title="${r.memo||''}">${r.memo||'—'}</td>
+        </tr>`;
+      }).join('');
+      const total=recs.reduce((s,r)=>s+r.amount,0);
+      const el=document.getElementById(totalId);
+      el.textContent=fmtSigned(total,ccy);
+      el.style.color=total<0?'#c0392b':'#1a1a1a';
+    }
+    renderTable(usdRecs,'local-usd-body','usd-total','$','USD');
+    renderTable(eurRecs,'local-eur-body','eur-total','€','EUR');
+  }
+  function addAccount() {
+    const buyer=document.getElementById('acc-buyer').value.trim();
+    if(!buyer){alert('Please enter buyer name.');return;}
+    accounts.push({id:Date.now(),buyer,ccy:document.getElementById('acc-ccy').value,name:document.getElementById('acc-name').value.trim(),title:document.getElementById('acc-title').value.trim(),addr:document.getElementById('acc-addr').value.trim(),acno:document.getElementById('acc-acno').value.trim(),bank:document.getElementById('acc-bank').value.trim(),swift:document.getElementById('acc-swift').value.trim(),memo:document.getElementById('acc-memo').value.trim()});
+    saveToSheets();renderAccounts();
+    ['acc-buyer','acc-name','acc-title','acc-addr','acc-acno','acc-bank','acc-swift','acc-memo'].forEach(id=>document.getElementById(id).value='');
+  }
+  function deleteAccount(id){accounts=accounts.filter(a=>a.id!==id);saveToSheets();renderAccounts();}
+  function editAccount(id) {
+    const a=accounts.find(a=>a.id===id);if(!a)return;
+    document.getElementById('acc-buyer').value=a.buyer||'';
+    document.getElementById('acc-ccy').value=a.ccy||'USD';
+    document.getElementById('acc-name').value=a.name||'';
+    document.getElementById('acc-title').value=a.title||'';
+    document.getElementById('acc-addr').value=a.addr||'';
+    document.getElementById('acc-acno').value=a.acno||'';
+    document.getElementById('acc-bank').value=a.bank||'';
+    document.getElementById('acc-swift').value=a.swift||'';
+    document.getElementById('acc-memo').value=a.memo||'';
+    accounts=accounts.filter(a=>a.id!==id);
+    saveToSheets();renderAccounts();window.scrollTo(0,0);
+  }
+  function renderAccounts() {
+    const grid=document.getElementById('account-grid');
+    const sortField=document.getElementById('sort-field').value;
+    const search=document.getElementById('acc-search').value.toLowerCase();
+    let filtered=accounts.filter(a=>a.buyer.toLowerCase().includes(search)||a.ccy.toLowerCase().includes(search));
+    filtered.sort((a,b)=>sortField==='buyer'?a.buyer.localeCompare(b.buyer):a.ccy.localeCompare(b.ccy)||a.buyer.localeCompare(b.buyer));
+    if(!filtered.length){grid.innerHTML='<div class="empty-state" style="grid-column:1/-1;padding:2rem;">No accounts saved yet.</div>';return;}
+    grid.innerHTML=filtered.map(a=>`
+      <div class="account-card">
+        <div class="account-card-header">
+          <div class="account-buyer">${a.buyer}</div>
+          <div class="account-ccy">${a.ccy}</div>
+        </div>
+        ${a.name?`<div class="account-row"><span class="key">Beneficiary</span><span class="val">${a.name}</span></div>`:''}
+        ${a.title?`<div class="account-row"><span class="key">Title</span><span class="val">${a.title}</span></div>`:''}
+        ${a.addr?`<div class="account-row"><span class="key">Address</span><span class="val">${a.addr}</span></div>`:''}
+        ${a.acno?`<div class="account-row"><span class="key">Account No.</span><span class="val">${a.acno}</span></div>`:''}
+        ${a.bank?`<div class="account-row"><span class="key">Bank</span><span class="val">${a.bank}</span></div>`:''}
+        ${a.swift?`<div class="account-row"><span class="key">Swift code</span><span class="val">${a.swift}</span></div>`:''}
+        ${a.memo?`<div class="account-row"><span class="key">Memo</span><span class="val" style="color:#888;">${a.memo}</span></div>`:''}
+        <div class="account-actions">
+          <button class="acc-btn" onclick="editAccount(${a.id})">✏️ Edit</button>
+          <button class="acc-btn danger" onclick="deleteAccount(${a.id})">✕ Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  function clearForm() {
+    ['inv-no','product','qty','foc','unit','received','remark'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('atd').value=today;
+    document.getElementById('inv-date').value=today;
+    currentA=0;currentOV=0;currentUV=0;
+    ['total-a','invoice-a','m-a','m-ov','m-uv'].forEach(id=>document.getElementById(id).textContent='—');
+  }
+</script>
+</body>
+</html>
